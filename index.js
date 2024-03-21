@@ -26,96 +26,54 @@ const Excel = require("excel4node");
     }
 
     for (const codigo of codigosLimpios) {
-      await page.goto(
-        "https://www.anses.gob.ar/consultas/consulta-de-expediente"
-      );
-
-      const partes = codigo.split("-");
-      const cuit = partes.slice(1, 4).join("-");
+      await page.goto("https://www.anses.gob.ar/consultas/fecha-de-cobro");
 
       try {
-        await page.waitForSelector("#edit-nro-expediente", { timeout: 5000 });
+        await page.waitForSelector("#edit-nro-cuil", { timeout: 5000 });
       } catch (error) {
         console.error(
-          `El selector '#edit-nro-expediente' no se encontró en la página. Pasando al siguiente expediente.`
+          `El selector '#edit-nro-cuil' no se encontró en la página. Pasando al siguiente expediente.`
         );
         continue;
       }
 
-      await page.type("#edit-nro-expediente", codigo);
+      await page.type("#edit-nro-cuil", codigo);
       await page.click("#edit-submit");
 
       await new Promise((resolve) => setTimeout(resolve, 5000));
 
       try {
-        await page.waitForSelector("[class=container]", { timeout: 5000 });
-        const small = await page.$eval(
-          "div.constancia-inner small",
-          (element) => element.textContent.trim()
-        );
+        await page.waitForSelector("#content", { timeout: 5000 });
 
-        const fechaAlta = await page.$eval("div.fechas h4", (element) =>
+        const nombreCompleto = await page.$eval("div.person h2", (element) =>
+          element.textContent.trim()
+        );
+        const beneficio = await page.$eval("div.benefit h3", (element) =>
           element.textContent.trim()
         );
 
-        const fechaUr = await page.$eval(
-          ".col-sm-6:nth-of-type(2) h4",
-          (element) => element.textContent
+        const fechaCobro = await page.$eval("div.date", (element) =>
+          element.textContent
+            .trim()
+            .replace(/\s+/g, " ")
+            .replace(/\n+/g, "")
+            .replace(/(.+)\s+(\w+)\s+(\d+)/, "$2 $3 $1")
         );
 
-        const nombreCompleto = await page.evaluate(() => {
-          const h2Element = document.querySelector(".constancia-inner h2");
-          const nombre = h2Element.childNodes[0].nodeValue.trim();
-          return nombre;
-        });
-
-        const dni = small.split(" ")[2];
-        const estadoRespuesta = await page.$eval("div.estado h4", (element) =>
-          element.textContent.trim()
-        );
-        let estado;
-        if (
-          estadoRespuesta.startsWith(
-            "Tu trámite fue resuelto en forma favorable"
-          )
-        ) {
-          estado = "Favorable";
-        } else if (
-          estadoRespuesta.startsWith(
-            "Tu trámite fue resuelto en forma desfavorable"
-          )
-        ) {
-          estado = "Desfavorable";
-        } else if (
-          estadoRespuesta.startsWith("Tu trámite se encontraba mal caratulado")
-        ) {
-          estado = "Cambio de carátula";
-        } else if (
-          estadoRespuesta.startsWith("Es necesario que aportes documentación")
-        ) {
-          estado = "Iniciado / Requiere documentación";
-        } else {
-          estado = "Iniciado";
-        }
-
-        if (objeto[dni]) {
-          objeto[dni] = {
-            ...objeto[dni],
-            Expediente: codigo,
+        if (objeto[codigo]) {
+          objeto[codigo] = {
+            ...objeto[codigo],
             nombre: nombreCompleto,
-            cuit: cuit,
-            Estado: estado,
-            alta_Expediente: fechaAlta,
-            ultima_Revisión: fechaUr,
+            Cuil: codigo,
+            Beneficio: beneficio,
+            Fecha_Cobro: fechaCobro,
           };
         } else {
-          objeto[dni] = {
-            Expediente: codigo,
+          objeto[codigo] = {
             Nombre: nombreCompleto,
-            cuit: cuit,
-            Estado: estado,
-            "Alta de Expediente": fechaAlta,
-            "Ultima Revisión": fechaUr,
+            Cuil: codigo,
+            Beneficio: beneficio,
+            Fecha_Cobro: fechaCobro,
           };
         }
       } catch (error) {
