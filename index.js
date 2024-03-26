@@ -6,7 +6,7 @@ const Excel = require("excel4node");
   let browser;
 
   try {
-    browser = await puppeteer.launch({ headless: false });
+    browser = await puppeteer.launch({ headless: false,  protocolTimeout: 60000, });
     const page = await browser.newPage();
 
     const codigos = await fs.readFile("expedientes.txt", "utf-8");
